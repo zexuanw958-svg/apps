@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Secret Santa</title>
+<style>
+:root{--red:#c71c30;--deep:#8c0d1f;--pine:#0f5439;--gold:#dea845;--fg:#fff}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:linear-gradient(160deg,var(--red),var(--deep));color:var(--fg);
+font:17px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Rounded","SF Pro Text","Helvetica Neue","PingFang SC","Hiragino Sans",sans-serif}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center}
+main{width:100%;max-width:520px;padding:48px 20px 32px;flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1}
+.emoji{font-size:64px;line-height:1}
+h1{font-size:30px;line-height:1.2;margin:14px 0 6px}
+.sub{opacity:.88;margin:0 0 28px}
+.hold{width:168px;height:168px;border-radius:50%;border:none;background:rgba(255,255,255,.16);color:#fff;font:inherit;font-weight:600;
+cursor:pointer;position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+.hold svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.hold circle{fill:none;stroke-width:8}
+.hold .track{stroke:rgba(255,255,255,.25)}
+.hold .bar{stroke:var(--gold);stroke-linecap:round;stroke-dasharray:490;stroke-dashoffset:490}
+.hold span{position:relative;display:block;padding:0 18px}
+.reveal{display:none;width:100%}
+.lead{font-size:19px;opacity:.9;margin:8px 0 4px}
+.name{font-size:52px;font-weight:800;line-height:1.1;margin:6px 0 22px;word-break:break-word}
+.card{background:rgba(255,255,255,.15);border-radius:20px;padding:16px 18px;text-align:left;margin:0 0 12px;width:100%}
+.card b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
+.meta{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-weight:600;margin:6px 0 18px}
+.err{margin-top:30vh}
+footer{position:relative;z-index:1;padding:18px 20px 32px;text-align:center;font-size:14px;opacity:.9}
+footer a{color:#fff;font-weight:600}
+canvas{position:fixed;inset:0;pointer-events:none;z-index:0}
+.hint{font-size:14px;opacity:.75;margin-top:18px}
+</style>
+</head>
+<body>
+<canvas id="snow" aria-hidden="true"></canvas>
+<main>
+  <section id="intro">
+    <div class="emoji">🎅</div>
+    <h1 id="hi"></h1>
+    <p class="sub" id="look"></p>
+    <button class="hold" id="hold" aria-describedby="look">
+      <svg viewBox="0 0 168 168"><circle class="track" cx="84" cy="84" r="78"/><circle class="bar" id="bar" cx="84" cy="84" r="78"/></svg>
+      <span id="holdText"></span>
+    </button>
+    <p class="hint" id="event"></p>
+  </section>
+  <section class="reveal" id="reveal">
+    <div class="emoji">🎁</div>
+    <p class="lead" id="lead"></p>
+    <div class="name" id="who"></div>
+    <div class="meta" id="meta"></div>
+    <div class="card" id="wishCard" hidden><b id="wishLabel"></b><span id="wish"></span></div>
+    <div class="card" id="noteCard" hidden><b id="noteLabel"></b><span id="note"></span></div>
+    <p class="hint" id="secret"></p>
+  </section>
+  <section id="error" hidden><p class="err" id="errText"></p></section>
+</main>
+<footer><span id="made"></span> <a id="appLink" href="../">Secret Santa</a></footer>
+<script>
+"use strict";
+const T = {
+  en:{hi:"Hi {g}!",look:"Make sure nobody else can see your screen.",hold:"Hold to reveal",event:"{e}",lead:"You're the Secret Santa for",wish:"Wish list",note:"From the organizer",budget:"Budget {b}",secret:"Keep it secret! 🤫",err:"This link looks incomplete. Ask the organizer to send it again.",made:"Organize your own gift exchange with"},
+  de:{hi:"Hallo {g}!",look:"Achte darauf, dass niemand mitschaut.",hold:"Gedrückt halten",event:"{e}",lead:"Du wichtelst für",wish:"Wunschzettel",note:"Vom Organisator",budget:"Budget {b}",secret:"Psst – nicht verraten! 🤫",err:"Dieser Link ist unvollständig. Bitte den Organisator, ihn erneut zu senden.",made:"Organisiere dein eigenes Wichteln mit"},
+  es:{hi:"¡Hola, {g}!",look:"Asegúrate de que nadie más vea tu pantalla.",hold:"Mantén pulsado",event:"{e}",lead:"Eres el amigo invisible de",wish:"Lista de deseos",note:"Del organizador",budget:"Presupuesto {b}",secret:"¡Que no se entere nadie! 🤫",err:"Este enlace parece incompleto. Pide al organizador que lo envíe de nuevo.",made:"Organiza tu propio amigo invisible con"},
+  "es-419":{hi:"¡Hola, {g}!",look:"Asegúrate de que nadie más vea tu pantalla.",hold:"Mantén presionado",event:"{e}",lead:"Eres el amigo secreto de",wish:"Lista de deseos",note:"Del organizador",budget:"Presupuesto {b}",secret:"¡Que nadie se entere! 🤫",err:"Este enlace parece incompleto. Pide al organizador que lo envíe de nuevo.",made:"Organiza tu propio amigo secreto con"},
+  "pt-BR":{hi:"Oi, {g}!",look:"Garanta que ninguém esteja vendo sua tela.",hold:"Segure para revelar",event:"{e}",lead:"Você tirou",wish:"Lista de desejos",note:"Do organizador",budget:"Valor {b}",secret:"Guarde segredo! 🤫",err:"Este link parece incompleto. Peça ao organizador para enviar de novo.",made:"Organize seu próprio amigo secreto com"},
+  fr:{hi:"Bonjour {g} !",look:"Vérifiez que personne ne regarde votre écran.",hold:"Maintenir pour révéler",event:"{e}",lead:"Vous êtes le Père Noël secret de",wish:"Liste de souhaits",note:"De l’organisateur",budget:"Budget {b}",secret:"Chut, c’est un secret ! 🤫",err:"Ce lien semble incomplet. Demandez à l’organisateur de le renvoyer.",made:"Organisez votre propre échange de cadeaux avec"},
+  it:{hi:"Ciao {g}!",look:"Assicurati che nessuno stia guardando lo schermo.",hold:"Tieni premuto",event:"{e}",lead:"Sei il Babbo Natale segreto di",wish:"Lista dei desideri",note:"Dall’organizzatore",budget:"Budget {b}",secret:"Acqua in bocca! 🤫",err:"Questo link sembra incompleto. Chiedi all’organizzatore di inviarlo di nuovo.",made:"Organizza il tuo scambio di regali con"},
+  nl:{hi:"Hoi {g}!",look:"Zorg dat niemand anders meekijkt.",hold:"Ingedrukt houden",event:"{e}",lead:"Je hebt het lootje getrokken van",wish:"Verlanglijstje",note:"Van de organisator",budget:"Budget {b}",secret:"Niet verklappen! 🤫",err:"Deze link lijkt onvolledig. Vraag de organisator om hem opnieuw te sturen.",made:"Organiseer je eigen lootjes trekken met"},
+  ja:{hi:"{g}さん、こんにちは！",look:"周りの人に画面が見えないようにしてください。",hold:"長押しで表示",event:"{e}",lead:"あなたがプレゼントを贈る相手は",wish:"ほしいもの",note:"幹事より",budget:"予算 {b}",secret:"みんなにはナイショ！🤫",err:"リンクが不完全なようです。幹事にもう一度送ってもらってください。",made:"自分でもプレゼント交換を企画するなら"},
+  ko:{hi:"{g}님, 안녕하세요!",look:"다른 사람이 화면을 보지 않는지 확인하세요.",hold:"길게 눌러 확인",event:"{e}",lead:"당신의 마니또는",wish:"위시리스트",note:"주최자 메모",budget:"예산 {b}",secret:"비밀로 해 주세요! 🤫",err:"링크가 불완전합니다. 주최자에게 다시 보내 달라고 하세요.",made:"나만의 선물 교환을 준비하려면"},
+  "zh-Hans":{hi:"{g}，你好！",look:"确认旁边没有人在看你的屏幕。",hold:"长按揭晓",event:"{e}",lead:"你要送礼物给",wish:"心愿清单",note:"组织者留言",budget:"预算 {b}",secret:"要保密哦！🤫",err:"这个链接不完整，请让组织者重新发送。",made:"自己组织交换礼物，用"},
+  "zh-Hant":{hi:"{g}，你好！",look:"確認旁邊沒有人在看你的螢幕。",hold:"長按揭曉",event:"{e}",lead:"你要送禮物給",wish:"願望清單",note:"主辦人留言",budget:"預算 {b}",secret:"要保密喔！🤫",err:"這個連結不完整，請主辦人重新傳送。",made:"自己籌辦交換禮物，用"}
+};
+function pick(lang){
+  if(!lang) return "en";
+  if(T[lang]) return lang;
+  const l = lang.toLowerCase();
+  if(l.startsWith("zh")) return /hant|tw|hk|mo/.test(l) ? "zh-Hant" : "zh-Hans";
+  if(l.startsWith("pt")) return "pt-BR";
+  if(l.startsWith("es")) return (l === "es" || l === "es-es") ? "es" : "es-419";
+  const base = l.split("-")[0];
+  return T[base] ? base : "en";
+}
+function decode(token){
+  try{
+    let s = token.replace(/-/g,"+").replace(/_/g,"/");
+    while(s.length % 4) s += "=";
+    const raw = atob(s);
+    const bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
+    if(bytes.length < 5) return null;
+    let x = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+    if(x === 0) x = 1;
+    const out = new Uint8Array(bytes.length - 4);
+    for(let i = 4; i < bytes.length; i++){
+      x ^= (x << 13); x >>>= 0;
+      x ^= (x >>> 17);
+      x ^= (x << 5); x >>>= 0;
+      out[i-4] = bytes[i] ^ (x & 0xff);
+    }
+    return JSON.parse(new TextDecoder().decode(out));
+  }catch(e){ return null; }
+}
+const fill = (s, p) => s.replace(/\{(\w)\}/g, (_, k) => p[k] ?? "");
+const $ = id => document.getElementById(id);
+const p = decode(location.hash.slice(1));
+const lang = pick(p && p.l || navigator.language);
+const t = T[lang];
+document.documentElement.lang = lang;
+$("made").textContent = t.made;
+if(!p || !p.g || !p.r){
+  $("intro").hidden = true; $("error").hidden = false; $("errText").textContent = t.err;
+}else{
+  document.title = "🎅 " + p.e;
+  $("hi").textContent = fill(t.hi, p);
+  $("look").textContent = t.look;
+  $("holdText").textContent = t.hold;
+  $("event").textContent = p.e;
+  $("lead").textContent = t.lead;
+  $("who").textContent = p.r;
+  $("secret").textContent = t.secret;
+  const meta = [];
+  if(p.b) meta.push("💳 " + fill(t.budget, p));
+  if(p.d){
+    const [y,m,d] = p.d.split("-").map(Number);
+    try{ meta.push("📅 " + new Intl.DateTimeFormat(lang, {weekday:"short", month:"long", day:"numeric"}).format(new Date(y, m-1, d))); }catch(e){}
+  }
+  $("meta").textContent = meta.join("   ");
+  if(p.w){ $("wishCard").hidden = false; $("wishLabel").textContent = t.wish; $("wish").textContent = p.w; }
+  if(p.n){ $("noteCard").hidden = false; $("noteLabel").textContent = t.note; $("note").textContent = p.n; }
+  let timer = null, start = 0;
+  const bar = $("bar"), HOLD = 900, LEN = 490;
+  const reset = () => { cancelAnimationFrame(timer); timer = null; bar.style.strokeDashoffset = LEN; };
+  const tick = now => {
+    const k = Math.min(1, (now - start) / HOLD);
+    bar.style.strokeDashoffset = LEN * (1 - k);
+    if(k >= 1){ show(); return; }
+    timer = requestAnimationFrame(tick);
+  };
+  const show = () => {
+    $("intro").style.display = "none"; $("reveal").style.display = "block";
+    if(navigator.vibrate) navigator.vibrate(60);
+    burst = true;
+  };
+  const down = e => { e.preventDefault(); start = performance.now(); timer = requestAnimationFrame(tick); };
+  $("hold").addEventListener("pointerdown", down);
+  ["pointerup","pointerleave","pointercancel"].forEach(ev => $("hold").addEventListener(ev, () => { if(timer) reset(); }));
+  $("hold").addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " ") show(); });
+}
+// snow
+let burst = false;
+(() => {
+  const c = $("snow"), ctx = c.getContext("2d");
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let w, h, flakes = [];
+  const resize = () => { w = c.width = innerWidth * devicePixelRatio; h = c.height = innerHeight * devicePixelRatio; };
+  resize(); addEventListener("resize", resize);
+  for(let i = 0; i < 70; i++) flakes.push({x: Math.random(), y: Math.random(), r: 1 + Math.random() * 2.6, s: .2 + Math.random() * .6});
+  const loop = () => {
+    ctx.clearRect(0, 0, w, h);
+    for(const f of flakes){
+      f.y += f.s * (burst ? 0.006 : 0.0025); f.x += Math.sin(f.y * 12) * 0.0006;
+      if(f.y > 1.02){ f.y = -0.02; f.x = Math.random(); }
+      ctx.beginPath(); ctx.arc(f.x * w, f.y * h, f.r * devicePixelRatio, 0, 7);
+      ctx.fillStyle = burst ? "rgba(222,168,69,.8)" : "rgba(255,255,255,.7)"; ctx.fill();
+    }
+    requestAnimationFrame(loop);
+  };
+  loop();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+name: Support / Feedback
+description: Questions, problems or ideas for any of the apps.
+labels: [support]
+body:
+  - type: dropdown
+    id: app
+    attributes:
+      label: App
+      options: [Secret Santa, Christmas List / Gift List, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What happened, or what would you like?
+      description: Please don't post private information here — this page is public.
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: iPhone model and iOS version (optional)
