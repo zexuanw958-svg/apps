@@ -6,7 +6,7 @@ body:
     id: app
     attributes:
       label: App
-      options: [Secret Santa, Christmas List / Gift List, Other]
+      options: [Secret Santa, Christmas List / Gift List, 人情礼簿 Gift Ledger, 亲戚称呼 Kinship Calculator, Other]
     validations:
       required: true
   - type: textarea
